@@ -59,15 +59,20 @@ public class JdtAnnotations
 
         public T[] getArray(IAnnotation annotation, String name) throws JavaModelException
         {
+            return stream(annotation, name).toArray(arrayFactory);
+        }
+
+        public Stream<T> stream(IAnnotation annotation, String name) throws JavaModelException
+        {
             IMemberValuePair member = member(annotation, name);
             if (member != null)
             {
                 var source = member.getValue() instanceof Object[] values
                     ? Arrays.stream(values)
                     : Stream.of(member.getValue());
-                return source.map(tClass::cast).toArray(arrayFactory);
+                return source.map(tClass::cast);
             }
-            return null;
+            return Stream.empty();
         }
     }
 }

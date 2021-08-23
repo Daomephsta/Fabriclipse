@@ -30,6 +30,7 @@ import com.google.gson.JsonObject;
 
 import daomephsta.fabriclipse.metadata.ModMetadata;
 import daomephsta.fabriclipse.metadata.ModMetadataStore;
+import daomephsta.fabriclipse.util.JdtAnnotations;
 
 public class MixinStore
 {
@@ -81,23 +82,11 @@ public class MixinStore
     private Iterable<String> getTargetClasses(IType mixinClass) throws JavaModelException
     {
         IAnnotation mixinAnnotation = mixinClass.getAnnotation("Mixin");
-        for (IMemberValuePair member : mixinAnnotation.getMemberValuePairs())
-        {
-            switch (member.getMemberName())
-            {
-            case "targets":
-            case "value":
-                if (member.getValue() instanceof Object[] values)
-                    return Arrays.stream(values)
-                        .map(type -> resolveType(mixinClass, (String) type))
-                        .toList();
-                else
-                    return List.of(resolveType(mixinClass, (String) member.getValue()));
-            default:
-                continue;
-            }
-        }
-        throw new IllegalStateException(mixinClass + " is not a mixin");
+        return Stream.concat(
+            JdtAnnotations.MemberType.CLASS.stream(mixinAnnotation, "value"),
+            JdtAnnotations.MemberType.STRING.stream(mixinAnnotation, "targets"))
+                .map(type -> resolveType(mixinClass, type))
+                .toList();
     }
 
     private String resolveType(IType against, String type)
