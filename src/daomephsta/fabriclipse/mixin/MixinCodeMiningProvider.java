@@ -81,7 +81,7 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
 
     private void processInjection(
         IType openType, IMethod handler, IAnnotation inject, Multimap<IMethod, IMethod> injects)
-        throws BadLocationException, JavaModelException
+        throws JavaModelException
     {
         for (String method : JdtAnnotations.MemberType.STRING.getArray(inject, "method"))
         {
@@ -132,7 +132,8 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
                         '.' + handler.getElementName() + "(...)");
                     handlerItem.addSelectionListener(SelectionListener.widgetSelectedAdapter(click ->
                     {
-                        IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
+                        IWorkbenchPage page = PlatformUI.getWorkbench()
+                            .getActiveWorkbenchWindow().getActivePage();
                         try
                         {
                             IDE.openEditor(page, (IFile) handler.getResource());
