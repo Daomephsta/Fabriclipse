@@ -1,0 +1,121 @@
+package daomephsta.fabriclipse.mixin;
+
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
+
+import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IProject;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.jdt.core.IAnnotation;
+import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IMemberValuePair;
+import org.eclipse.jdt.core.IType;
+import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.JavaModelException;
+
+import com.google.common.collect.Sets;
+import com.google.common.collect.Streams;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+
+import daomephsta.fabriclipse.metadata.ModMetadata;
+import daomephsta.fabriclipse.metadata.ModMetadataStore;
+
+public class MixinStore
+{
+    public static final MixinStore INSTANCE = new MixinStore();
+    private static final Gson GSON = new GsonBuilder().create();
+    private Map<String, Collection<IType>> mixinInfo;
+
+    public Collection<IType> mixinsFor(IProject project, String targetClass)
+    {
+        if (mixinInfo == null)
+        {
+            this.mixinInfo = new ConcurrentHashMap<>();
+            IJavaProject javaProject = JavaCore.create(project);
+            ModMetadata metadata = ModMetadataStore.INSTANCE.getProjectMetadata(project);
+            try
+            {
+                for (String config : metadata.getMixinConfigs())
+                {
+                    for (String mixinName : readMixinNames(project.getFile("src/main/resources/" + config)))
+                    {
+                        IType mixinClass = javaProject.findType(mixinName);
+                        for (String target : getTargetClasses(mixinClass))
+                            mixinInfo.computeIfAbsent(target, k -> Sets.newConcurrentHashSet()).add(mixinClass);
+                    }
+                }
+            }
+            catch (JavaModelException e)
+            {
+                e.printStackTrace();
+            }
+        }
+        return mixinInfo.get(targetClass);
+    }
+
+    private Iterable<String> getTargetClasses(IType mixinClass) throws JavaModelException
+    {
+        IAnnotation mixinAnnotation = mixinClass.getAnnotation("Mixin");
+        for (IMemberValuePair member : mixinAnnotation.getMemberValuePairs())
+        {
+            switch (member.getMemberName())
+            {
+            case "targets":
+            case "value":
+                if (member.getValue() instanceof Object[] values)
+                    return Arrays.stream(values)
+                        .map(type -> resolveType(mixinClass, (String) type))
+                        .toList();
+                else
+                    return List.of(resolveType(mixinClass, (String) member.getValue()));
+            default:
+                continue;
+            }
+        }
+        throw new IllegalStateException(mixinClass + " is not a mixin");
+    }
+
+    private String resolveType(IType against, String type)
+    {
+        try
+        {
+            String[][] resolved = against.resolveType(type);
+            if (resolved == null)
+                throw new IllegalStateException("Resolution of " + type + " in " + against + " failed");
+            if (resolved.length != 1)
+                throw new IllegalStateException(type + " in " + against + " is ambiguous");
+            return String.join(".", resolved[0]);
+        }
+        catch (JavaModelException e)
+        {
+            throw new IllegalStateException("Resolution of " + type + " in " + against + " failed", e);
+        }
+    }
+
+    private Iterable<String> readMixinNames(IFile mixinConfig)
+    {
+        try (Reader reader = new InputStreamReader(mixinConfig.getContents()))
+        {
+            JsonObject root = GSON.fromJson(reader, JsonObject.class);
+            String packageName = root.get("package").getAsString();
+            return Stream.of("mixins", "client", "server")
+                .filter(root::has)
+                .flatMap(key -> Streams.stream(root.get(key).getAsJsonArray()))
+                .map(localName -> packageName + '.' + localName.getAsString())
+                .toList();
+        }
+        catch (IOException | CoreException e)
+        {
+            throw new RuntimeException("Failed to read mixin config " + mixinConfig.getName(), e);
+        }
+    }
+}

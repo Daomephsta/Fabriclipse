@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <extension
+         id="mixinCodeMinings"
+         name="Mixin Code Minings"
+         point="org.eclipse.ui.workbench.texteditor.codeMiningProviders">
+      <codeMiningProvider
+            class="daomephsta.fabriclipse.mixin.MixinCodeMiningProvider"
+            id="fabriclipse.mixinCodeMinings"
+            label="Mixin Code Minings">
+         <enabledWhen>
+               <with variable="editor">
+                  <test
+                        forcePluginActivation="true"
+                        property="daomephsta.fabriclipse.partId"
+                        value="org.eclipse.jdt.ui.ClassFileEditor">
+                  </test>
+               </with>
+         </enabledWhen>
+      </codeMiningProvider>
+   </extension>
+   <extension
+         id="partId"
+         name="Get Workbench Part ID"
+         point="org.eclipse.core.expressions.propertyTesters">
+      <propertyTester
+            class="daomephsta.fabriclipse.util.WorkbenchPartIdPropertyTester"
+            id="daomephsta.fabriclipse.partId"
+            namespace="daomephsta.fabriclipse"
+            properties="partId"
+            type="org.eclipse.ui.IWorkbenchPart">
+      </propertyTester>
+   </extension>
+</plugin>
