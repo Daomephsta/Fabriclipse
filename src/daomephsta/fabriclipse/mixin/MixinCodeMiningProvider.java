@@ -29,7 +29,6 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
-import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.PlatformUI;
@@ -47,17 +46,16 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
     public CompletableFuture<List<? extends ICodeMining>>
         provideCodeMinings(ITextViewer viewer, IProgressMonitor monitor)
     {
-        ITextEditor editor = getAdapter(ITextEditor.class);
-        IEditorInput input = editor.getEditorInput();
-        IClassFile openClass = input.getAdapter(IClassFile.class);
+        IClassFile openClass = getAdapter(ITextEditor.class).getEditorInput().getAdapter(IClassFile.class);
         IType openType = openClass.findPrimaryType();
-        return CompletableFuture.supplyAsync(() ->
-            computeMinings(openClass.getJavaProject().getProject(), viewer.getDocument(), openType));
+        IProject project = openClass.getJavaProject().getProject();
+        return MixinStore.INSTANCE.mixinsFor(project, openType.getFullyQualifiedName())
+            .thenApplyAsync(mixins -> computeMinings(mixins, viewer.getDocument(), openType));
     }
 
-    private List<? extends ICodeMining> computeMinings(IProject project, IDocument document, IType openType)
+    private List<? extends ICodeMining> computeMinings(
+        Collection<IType> mixins, IDocument document, IType openType)
     {
-        Collection<IType> mixins = MixinStore.INSTANCE.mixinsFor(project, openType.getFullyQualifiedName());
         Multimap<IMethod, IMethod> injects = HashMultimap.create();
         List<ICodeMining> minings = new ArrayList<>();
         try

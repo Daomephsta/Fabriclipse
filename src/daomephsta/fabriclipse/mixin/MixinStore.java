@@ -5,8 +5,10 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
@@ -35,31 +37,45 @@ public class MixinStore
     private static final Gson GSON = new GsonBuilder().create();
     private Map<String, Collection<IType>> mixinInfo;
 
-    public Collection<IType> mixinsFor(IProject project, String targetClass)
+    public CompletableFuture<Collection<IType>> mixinsFor(IProject project, String targetClass)
     {
         if (mixinInfo == null)
         {
-            this.mixinInfo = new ConcurrentHashMap<>();
-            IJavaProject javaProject = JavaCore.create(project);
-            ModMetadata metadata = ModMetadataStore.INSTANCE.getProjectMetadata(project);
-            try
+            return CompletableFuture.supplyAsync(() ->
             {
-                for (String config : metadata.getMixinConfigs())
+                // To avoid race condition, use local map and assign
+                // to member field when computation is finished
+                Map<String, Collection<IType>> mixinInfo = new ConcurrentHashMap<>();
+                IJavaProject javaProject = JavaCore.create(project);
+                ModMetadata metadata = ModMetadataStore.INSTANCE.getProjectMetadata(project);
+                try
                 {
-                    for (String mixinName : readMixinNames(project.getFile("src/main/resources/" + config)))
+                    for (String config : metadata.getMixinConfigs())
                     {
-                        IType mixinClass = javaProject.findType(mixinName);
-                        for (String target : getTargetClasses(mixinClass))
-                            mixinInfo.computeIfAbsent(target, k -> Sets.newConcurrentHashSet()).add(mixinClass);
+                        for (String mixinName : readMixinNames(project.getFile("src/main/resources/" + config)))
+                        {
+                            IType mixinClass = javaProject.findType(mixinName);
+                            for (String target : getTargetClasses(mixinClass))
+                            {
+                                mixinInfo.computeIfAbsent(target, k -> Sets.newConcurrentHashSet())
+                                    .add(mixinClass);
+                            }
+                        }
                     }
                 }
-            }
-            catch (JavaModelException e)
-            {
-                e.printStackTrace();
-            }
+                catch (JavaModelException e)
+                {
+                    e.printStackTrace();
+                }
+                this.mixinInfo = mixinInfo;
+                return mixinInfo.get(targetClass);
+            });
         }
-        return mixinInfo.get(targetClass);
+        else
+        {
+            return CompletableFuture.completedFuture(
+                mixinInfo.getOrDefault(targetClass, Collections.emptyList()));
+        }
     }
 
     private Iterable<String> getTargetClasses(IType mixinClass) throws JavaModelException
