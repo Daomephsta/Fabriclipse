@@ -1,126 +1,130 @@
 package daomephsta.fabriclipse.mixin;
 
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Stream;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IResourceChangeEvent;
+import org.eclipse.core.resources.IResourceChangeListener;
+import org.eclipse.core.resources.IResourceDelta;
 import org.eclipse.core.runtime.CoreException;
-import org.eclipse.jdt.core.IAnnotation;
-import org.eclipse.jdt.core.IJavaProject;
-import org.eclipse.jdt.core.IMemberValuePair;
+import org.eclipse.jdt.core.IClassFile;
+import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jface.text.ITextViewer;
+import org.eclipse.jface.text.source.ISourceViewerExtension5;
+import org.eclipse.ui.IEditorReference;
+import org.eclipse.ui.IWorkbenchPage;
+import org.eclipse.ui.PartInitException;
+import org.eclipse.ui.PlatformUI;
 
-import com.google.common.collect.Sets;
-import com.google.common.collect.Streams;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
+import daomephsta.fabriclipse.util.Mixins;
 
-import daomephsta.fabriclipse.metadata.ModMetadata;
-import daomephsta.fabriclipse.metadata.ModMetadataStore;
-import daomephsta.fabriclipse.util.JdtAnnotations;
-
-public class MixinStore
+public class MixinStore implements IResourceChangeListener
 {
     public static final MixinStore INSTANCE = new MixinStore();
-    private static final Gson GSON = new GsonBuilder().create();
-    private Map<String, Collection<IType>> mixinInfo;
+    private final Map<IProject, CompletableFuture<ProjectMixins>> mixinsByProject = new ConcurrentHashMap<>();
 
-    public CompletableFuture<Collection<IType>> mixinsFor(IProject project, String targetClass)
+    public CompletableFuture<Collection<MixinInfo>> mixinsFor(IProject project, String targetClass)
     {
-        if (mixinInfo == null)
+        return byProject(project)
+            .thenApply(m -> m.byTarget.get(targetClass));
+    }
+
+    public CompletableFuture<Void> loadConfig(IProject project, String config)
+    {
+        return byProject(project).thenAcceptAsync(mixins ->
         {
-            return CompletableFuture.supplyAsync(() ->
+            try
             {
-                // To avoid race condition, use local map and assign
-                // to member field when computation is finished
-                Map<String, Collection<IType>> mixinInfo = new ConcurrentHashMap<>();
-                IJavaProject javaProject = JavaCore.create(project);
-                ModMetadata metadata = ModMetadataStore.INSTANCE.getProjectMetadata(project);
-                try
+                mixins.loadConfig(config);
+            }
+            catch (JavaModelException e)
+            {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    public CompletableFuture<Void> removeByConfig(IProject project, String config)
+    {
+        return MixinStore.INSTANCE.byProject(project)
+            .thenAccept(mixins -> mixins.removeByConfig(config));
+    }
+
+    private CompletableFuture<ProjectMixins> byProject(IProject project)
+    {
+        return mixinsByProject.computeIfAbsent(project,
+            k -> CompletableFuture.supplyAsync(() -> new ProjectMixins(k)));
+    }
+
+    public record MixinInfo(String target, IType mixin) {}
+
+    @Override
+    public void resourceChanged(IResourceChangeEvent event)
+    {
+        if (event.getType() == IResourceChangeEvent.POST_CHANGE)
+        {
+            try
+            {
+                for (IResourceDelta projectDelta :
+                    event.getDelta().getAffectedChildren())
                 {
-                    for (String config : metadata.getMixinConfigs())
-                    {
-                        for (String mixinName : readMixinNames(project.getFile("src/main/resources/" + config)))
-                        {
-                            IType mixinClass = javaProject.findType(mixinName);
-                            for (String target : getTargetClasses(mixinClass))
-                            {
-                                mixinInfo.computeIfAbsent(target, k -> Sets.newConcurrentHashSet())
-                                    .add(mixinClass);
-                            }
-                        }
-                    }
+                    IProject project = (IProject) projectDelta.getResource();
+                    event.getDelta().accept(delta ->
+                        visitProjectDelta(project, delta));
                 }
-                catch (JavaModelException e)
+            }
+            catch (CoreException e)
+            {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private boolean visitProjectDelta(IProject project, IResourceDelta delta) throws JavaModelException
+    {
+        if (delta.getResource() instanceof IFile file &&
+            delta.getFullPath().getFileExtension().equals("java"))
+        {
+            var javaFile = (ICompilationUnit) JavaCore.create(file);
+            for (IType type : javaFile.getAllTypes())
+            {
+                byProject(project).thenAccept(mixins ->
                 {
-                    e.printStackTrace();
+                    if (mixins.all.contains(type))
+                        processMixin(type);
+                });
+            }
+        }
+        return true;
+    }
+
+    private void processMixin(IType mixin)
+    {
+        IWorkbenchPage activePage = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
+        for (IEditorReference editor : activePage.getEditorReferences())
+        {
+            try
+            {
+                ITextViewer textViewer = editor.getEditor(false).getAdapter(ITextViewer.class);
+                String openClassName = editor.getEditorInput().getAdapter(IClassFile.class)
+                    .findPrimaryType().getFullyQualifiedName();
+                if (Mixins.getTargetClasses(mixin).contains(openClassName) &&
+                    textViewer instanceof ISourceViewerExtension5 sve5)
+                {
+                    sve5.updateCodeMinings();
                 }
-                this.mixinInfo = mixinInfo;
-                return mixinInfo.get(targetClass);
-            });
-        }
-        else
-        {
-            return CompletableFuture.completedFuture(
-                mixinInfo.getOrDefault(targetClass, Collections.emptyList()));
-        }
-    }
-
-    private Iterable<String> getTargetClasses(IType mixinClass) throws JavaModelException
-    {
-        IAnnotation mixinAnnotation = mixinClass.getAnnotation("Mixin");
-        return Stream.concat(
-            JdtAnnotations.MemberType.CLASS.stream(mixinAnnotation, "value"),
-            JdtAnnotations.MemberType.STRING.stream(mixinAnnotation, "targets"))
-                .map(type -> resolveType(mixinClass, type))
-                .toList();
-    }
-
-    private String resolveType(IType against, String type)
-    {
-        try
-        {
-            String[][] resolved = against.resolveType(type);
-            if (resolved == null)
-                throw new IllegalStateException("Resolution of " + type + " in " + against + " failed");
-            if (resolved.length != 1)
-                throw new IllegalStateException(type + " in " + against + " is ambiguous");
-            return String.join(".", resolved[0]);
-        }
-        catch (JavaModelException e)
-        {
-            throw new IllegalStateException("Resolution of " + type + " in " + against + " failed", e);
-        }
-    }
-
-    private Iterable<String> readMixinNames(IFile mixinConfig)
-    {
-        try (Reader reader = new InputStreamReader(mixinConfig.getContents()))
-        {
-            JsonObject root = GSON.fromJson(reader, JsonObject.class);
-            String packageName = root.get("package").getAsString();
-            return Stream.of("mixins", "client", "server")
-                .filter(root::has)
-                .flatMap(key -> Streams.stream(root.get(key).getAsJsonArray()))
-                .map(localName -> packageName + '.' + localName.getAsString())
-                .toList();
-        }
-        catch (IOException | CoreException e)
-        {
-            throw new RuntimeException("Failed to read mixin config " + mixinConfig.getName(), e);
+            }
+            catch (PartInitException e)
+            {
+                e.printStackTrace();
+            }
         }
     }
 }

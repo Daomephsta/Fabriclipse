@@ -38,6 +38,7 @@ import org.eclipse.ui.texteditor.ITextEditor;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 
+import daomephsta.fabriclipse.mixin.MixinStore.MixinInfo;
 import daomephsta.fabriclipse.util.JdtAnnotations;
 
 public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
@@ -54,15 +55,15 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
     }
 
     private List<? extends ICodeMining> computeMinings(
-        Collection<IType> mixins, IDocument document, IType openType)
+        Collection<MixinInfo> mixins, IDocument document, IType openType)
     {
         Multimap<IMethod, IMethod> injects = HashMultimap.create();
         List<ICodeMining> minings = new ArrayList<>();
         try
         {
-            for (IType mixin : mixins)
+            for (MixinInfo info : mixins)
             {
-                for (IMethod method : mixin.getMethods())
+                for (IMethod method : info.mixin().getMethods())
                 {
                     IAnnotation inject = method.getAnnotation("Inject");
                     if (inject != null)
