@@ -4,16 +4,15 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
-import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
-import org.eclipse.jdt.core.JavaModelException;
 
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
@@ -23,8 +22,8 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
-import daomephsta.fabriclipse.metadata.ModMetadata;
-import daomephsta.fabriclipse.metadata.ModMetadataStore;
+import daomephsta.fabriclipse.metadata.Mod;
+import daomephsta.fabriclipse.metadata.ProjectEnvironmentManager;
 import daomephsta.fabriclipse.mixin.MixinStore.MixinInfo;
 import daomephsta.fabriclipse.util.Mixins;
 
@@ -36,13 +35,19 @@ public class ProjectMixins
     final Multimap<String, MixinInfo> byTarget;
     final Multimap<String, MixinInfo> byConfig;
 
-    public ProjectMixins(IProject project)
+    private ProjectMixins(IProject project)
     {
         this.javaProject = JavaCore.create(project);
         this.all = Sets.newConcurrentHashSet();
         this.byTarget = concurrentMultimap();
         this.byConfig = concurrentMultimap();
-        loadAllConfigs(project);
+    }
+
+    static ProjectMixins forProject(IProject project)
+    {
+        ProjectMixins mixins = new ProjectMixins(project);
+        mixins.loadAllConfigs(project).join();
+        return mixins;
     }
 
     void removeByConfig(String config)
@@ -54,26 +59,30 @@ public class ProjectMixins
         }
     }
 
-    private void loadAllConfigs(IProject project)
+    private CompletableFuture<Void> loadAllConfigs(IProject project)
     {
-        ModMetadata metadata = ModMetadataStore.INSTANCE.getProjectMetadata(project);
-        try
+        return ProjectEnvironmentManager.INSTANCE.getProjectEnvironment(project).thenAccept(environment ->
         {
-            for (String config : metadata.getMixinConfigs())
-                loadConfig(config);
-        }
-        catch (JavaModelException e)
-        {
-            e.printStackTrace();
-        }
+            for (Mod mod : environment.allMods())
+            {
+                for (String config : mod.getMetadata().getMixinConfigs())
+                {
+                    try
+                    {
+                        loadConfig(mod, config);
+                    }
+                    catch (CoreException | IOException e)
+                    {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        });
     }
 
-    void loadConfig(String config) throws JavaModelException
+    void loadConfig(Mod mod, String config) throws CoreException, IOException
     {
-        IFile configFile = javaProject.getProject().getFile("src/main/resources/" + config);
-        if (!configFile.exists())
-            return;
-        for (String mixinName : readMixinNames(configFile))
+        for (String mixinName : readMixinNames(new InputStreamReader(mod.openResource(config))))
         {
             IType mixinClass = javaProject.findType(mixinName);
             for (String target : Mixins.getTargetClasses(mixinClass))
@@ -86,22 +95,15 @@ public class ProjectMixins
         }
     }
 
-    private Iterable<String> readMixinNames(IFile mixinConfig)
+    private Iterable<String> readMixinNames(Reader configContents)
     {
-        try (Reader reader = new InputStreamReader(mixinConfig.getContents()))
-        {
-            JsonObject root = GSON.fromJson(reader, JsonObject.class);
-            String packageName = root.get("package").getAsString();
-            return Stream.of("mixins", "client", "server")
-                .filter(root::has)
-                .flatMap(key -> Streams.stream(root.get(key).getAsJsonArray()))
-                .map(localName -> packageName + '.' + localName.getAsString())
-                .toList();
-        }
-        catch (IOException | CoreException e)
-        {
-            throw new RuntimeException("Failed to read mixin config " + mixinConfig.getName(), e);
-        }
+        JsonObject root = GSON.fromJson(configContents, JsonObject.class);
+        String packageName = root.get("package").getAsString();
+        return Stream.of("mixins", "client", "server")
+            .filter(root::has)
+            .flatMap(key -> Streams.stream(root.get(key).getAsJsonArray()))
+            .map(localName -> packageName + '.' + localName.getAsString())
+            .toList();
     }
 
     private static <K, V> Multimap<K, V> concurrentMultimap()

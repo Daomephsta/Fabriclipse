@@ -1,13 +1,14 @@
 package daomephsta.fabriclipse.mixin;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
-import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.IAnnotation;
 import org.eclipse.jdt.core.IClassFile;
@@ -15,6 +16,8 @@ import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.Signature;
+import org.eclipse.jdt.core.SourceRange;
+import org.eclipse.jdt.ui.JavaUI;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.ITextViewer;
@@ -29,10 +32,7 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
-import org.eclipse.ui.IWorkbenchPage;
-import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.PlatformUI;
-import org.eclipse.ui.ide.IDE;
 import org.eclipse.ui.texteditor.ITextEditor;
 
 import com.google.common.collect.HashMultimap;
@@ -65,13 +65,19 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
             {
                 for (IMethod method : info.mixin().getMethods())
                 {
-                    IAnnotation inject = method.getAnnotation("Inject");
-                    if (inject != null)
+                    IAnnotation inject = method.getAnnotation(
+                        method.isBinary() ? "org.spongepowered.asm.mixin.injection.Inject" : "Inject");
+                    if (inject.exists())
                         processInjection(openType, method, inject, injects);
                 }
             }
             for (IMethod target : injects.keySet())
-                minings.add(MixinCodeMining.create(target, injects.get(target), document, this));
+            {
+                if (SourceRange.isAvailable(target.getSourceRange()))
+                    minings.add(MixinCodeMining.create(target, injects.get(target), document, this));
+                else
+                    System.out.println("No source range for " + target);
+            }
         }
         catch (BadLocationException | JavaModelException e)
         {
@@ -86,9 +92,23 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
     {
         for (String method : JdtAnnotations.MemberType.STRING.getArray(inject, "method"))
         {
-            String name = method.substring(0, method.indexOf('('));
-            IMethod target = openType.getMethod(name, Signature.getParameterTypes(method));
-            injects.put(target, handler);
+            int parametersStart = method.indexOf('(');
+            if (parametersStart != -1)
+            {
+                String name = method.substring(0, parametersStart);
+                // Parameters types must be dot format, or the method isn't found
+                String[] parameterTypes = Signature.getParameterTypes(method.replace('/', '.'));
+                IMethod target = openType.getMethod(name, parameterTypes);
+                injects.put(target, handler);
+            }
+            else
+            {
+                Arrays.stream(openType.getMethods())
+                    .filter(candidate -> candidate.getElementName().equals(method))
+                    .reduce((a, b) -> {throw new IllegalArgumentException(
+                        "Target " + method + " of " + handler + " is ambiguous");})
+                    .ifPresent(target -> injects.put(target, handler));
+            }
         }
     }
 
@@ -133,13 +153,11 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
                         '.' + handler.getElementName() + "(...)");
                     handlerItem.addSelectionListener(SelectionListener.widgetSelectedAdapter(click ->
                     {
-                        IWorkbenchPage page = PlatformUI.getWorkbench()
-                            .getActiveWorkbenchWindow().getActivePage();
                         try
                         {
-                            IDE.openEditor(page, (IFile) handler.getResource());
+                            JavaUI.openInEditor(handler);
                         }
-                        catch (PartInitException e)
+                        catch (CoreException e)
                         {
                             e.printStackTrace();
                         }

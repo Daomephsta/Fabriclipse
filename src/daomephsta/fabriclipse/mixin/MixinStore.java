@@ -1,5 +1,6 @@
 package daomephsta.fabriclipse.mixin;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -23,6 +24,7 @@ import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.PlatformUI;
 
+import daomephsta.fabriclipse.metadata.Mod;
 import daomephsta.fabriclipse.util.Mixins;
 
 public class MixinStore implements IResourceChangeListener
@@ -36,15 +38,15 @@ public class MixinStore implements IResourceChangeListener
             .thenApply(m -> m.byTarget.get(targetClass));
     }
 
-    public CompletableFuture<Void> loadConfig(IProject project, String config)
+    public CompletableFuture<Void> loadConfig(IProject project, Mod mod, String config)
     {
         return byProject(project).thenAcceptAsync(mixins ->
         {
             try
             {
-                mixins.loadConfig(config);
+                mixins.loadConfig(mod, config);
             }
-            catch (JavaModelException e)
+            catch (CoreException | IOException e)
             {
                 e.printStackTrace();
             }
@@ -60,7 +62,7 @@ public class MixinStore implements IResourceChangeListener
     private CompletableFuture<ProjectMixins> byProject(IProject project)
     {
         return mixinsByProject.computeIfAbsent(project,
-            k -> CompletableFuture.supplyAsync(() -> new ProjectMixins(k)));
+            k -> CompletableFuture.supplyAsync(() -> ProjectMixins.forProject(k)));
     }
 
     public record MixinInfo(String target, IType mixin) {}

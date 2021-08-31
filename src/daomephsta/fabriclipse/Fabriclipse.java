@@ -4,7 +4,7 @@ import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
 
-import daomephsta.fabriclipse.metadata.ModMetadataStore;
+import daomephsta.fabriclipse.metadata.ProjectEnvironmentManager;
 import daomephsta.fabriclipse.mixin.MixinStore;
 
 public class Fabriclipse extends AbstractUIPlugin
@@ -14,6 +14,6 @@ public class Fabriclipse extends AbstractUIPlugin
     {
         super.start(context);
         ResourcesPlugin.getWorkspace().addResourceChangeListener(MixinStore.INSTANCE);
-        ResourcesPlugin.getWorkspace().addResourceChangeListener(ModMetadataStore.INSTANCE);
+        ResourcesPlugin.getWorkspace().addResourceChangeListener(ProjectEnvironmentManager.INSTANCE);
     }
 }

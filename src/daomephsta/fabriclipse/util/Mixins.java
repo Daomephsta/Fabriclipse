@@ -14,13 +14,14 @@ public class Mixins
 {
     public static Set<String> getTargetClasses(IType mixinClass)
     {
-        IAnnotation mixinAnnotation = mixinClass.getAnnotation("Mixin");
+        IAnnotation mixinAnnotation = mixinClass.getAnnotation(
+            mixinClass.isBinary() ? "org.spongepowered.asm.mixin.Mixin" : "Mixin");
         try
         {
             return Stream.concat(
                 JdtAnnotations.MemberType.CLASS.stream(mixinAnnotation, "value"),
                 JdtAnnotations.MemberType.STRING.stream(mixinAnnotation, "targets"))
-                    .map(type -> resolveType(mixinClass, type))
+                    .map(type -> mixinClass.isBinary() ? type : resolveType(mixinClass, type))
                     .collect(toSet());
         }
         catch (JavaModelException e)
