@@ -1,5 +1,6 @@
 package daomephsta.fabriclipse.metadata;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
@@ -61,7 +62,7 @@ public class ProjectEnvironmentManager implements IResourceChangeListener
                 for (IClasspathEntry entry : javaProject.getResolvedClasspath(true))
                 {
                     if ("jar".equals(entry.getPath().getFileExtension()))
-                        processJarMod(environment, entry.getPath());
+                        processJar(environment, entry.getPath());
                 }
             }
             catch (JavaModelException e)
@@ -72,16 +73,20 @@ public class ProjectEnvironmentManager implements IResourceChangeListener
         }));
     }
 
-    private void processJarMod(ProjectEnvironment environment, IPath jarPath)
+    private void processJar(ProjectEnvironment environment, IPath jarPath)
     {
-        try (JarFile jar = new JarFile(jarPath.toFile()))
+        File jarFile = jarPath.toFile();
+        if (!jarFile.exists())
+            return;
+        try (JarFile jar = new JarFile(jarFile))
         {
             JarEntry jarModMetadata = jar.getJarEntry("fabric.mod.json");
             if (jarModMetadata != null)
             {
                 try (Reader reader = new InputStreamReader(jar.getInputStream(jarModMetadata)))
                 {
-                    environment.addMod(jarPath, new JarMod(GSON.fromJson(reader, ModMetadata.class), jarPath));
+                    environment.addMod(jarPath,
+                        new JarMod(GSON.fromJson(reader, ModMetadata.class), jarPath));
                 }
             }
         }
