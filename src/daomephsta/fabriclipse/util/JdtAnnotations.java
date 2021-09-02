@@ -4,12 +4,25 @@ import java.util.Arrays;
 import java.util.function.IntFunction;
 import java.util.stream.Stream;
 
+import org.eclipse.jdt.core.IAnnotatable;
 import org.eclipse.jdt.core.IAnnotation;
+import org.eclipse.jdt.core.IMember;
 import org.eclipse.jdt.core.IMemberValuePair;
 import org.eclipse.jdt.core.JavaModelException;
 
 public class JdtAnnotations
 {
+    public static <T extends IAnnotatable & IMember> IAnnotation get(T parent, String qualifiedName)
+    {
+        if (parent.isBinary())
+            return parent.getAnnotation(qualifiedName);
+        else
+        {
+            var simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1);
+            return parent.getAnnotation(simpleName);
+        }
+    }
+
     public static IMemberValuePair member(IAnnotation annotation, String name) throws JavaModelException
     {
         for (IMemberValuePair member : annotation.getMemberValuePairs())

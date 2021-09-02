@@ -14,8 +14,7 @@ public class Mixins
 {
     public static Set<String> getTargetClasses(IType mixinClass)
     {
-        IAnnotation mixinAnnotation = mixinClass.getAnnotation(
-            mixinClass.isBinary() ? "org.spongepowered.asm.mixin.Mixin" : "Mixin");
+        IAnnotation mixinAnnotation = JdtAnnotations.get(mixinClass, "org.spongepowered.asm.mixin.Mixin");
         try
         {
             return Stream.concat(
