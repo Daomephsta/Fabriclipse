@@ -17,4 +17,10 @@
       [Enter License Description here.]
    </license>
 
+   <plugin
+         id="daomephsta.fabriclipse"
+         download-size="0"
+         install-size="0"
+         version="0.0.1"
+         unpack="false"/>
 </feature>
