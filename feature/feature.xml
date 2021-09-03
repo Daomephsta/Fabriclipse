@@ -45,7 +45,6 @@ SOFTWARE.
          id="daomephsta.fabriclipse"
          download-size="0"
          install-size="0"
-         version="0.0.1"
-         unpack="false"/>
+         version="0.0.1"/>
 
 </feature>
