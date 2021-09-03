@@ -2,13 +2,11 @@
 <?eclipse version="3.4"?>
 <plugin>
    <extension
-         id="mixinCodeMinings"
-         name="Mixin Code Minings"
          point="org.eclipse.ui.workbench.texteditor.codeMiningProviders">
       <codeMiningProvider
             class="daomephsta.fabriclipse.mixin.MixinCodeMiningProvider"
             id="fabriclipse.mixinCodeMinings"
-            label="Mixin Code Minings">
+            label="%mixinCodeMiningProvider.label">
          <enabledWhen>
                <with variable="editor">
                   <test
@@ -21,8 +19,6 @@
       </codeMiningProvider>
    </extension>
    <extension
-         id="partId"
-         name="Get Workbench Part ID"
          point="org.eclipse.core.expressions.propertyTesters">
       <propertyTester
             class="daomephsta.fabriclipse.util.WorkbenchPartIdPropertyTester"
@@ -37,7 +33,7 @@
             categoryId="org.eclipse.jdt.ui.category.source"
             defaultHandler="daomephsta.fabriclipse.mixin.MixinCodeMiningProvider$ToggleMiningsHandler"
             id="daomephsta.fabriclipse.mixin.ToggleMiningsCommand"
-            name="Toggle Mixin Code Minings">
+            name="%toggleMiningsCommand.name">
       </command>
    </extension>
    <extension
@@ -47,7 +43,7 @@
             locationURI="menu:org.eclipse.ui.editors?after=org.eclipse.ui.edit.text.toggleShowWhitespaceCharacters">
          <command
                commandId="daomephsta.fabriclipse.mixin.ToggleMiningsCommand"
-               label="Toggle Mixin Minings"
+               label="%toggleMiningsCommand.label"
                style="push">
             <visibleWhen checkEnabled="false">
              <and>

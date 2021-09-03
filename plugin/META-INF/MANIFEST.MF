@@ -1,9 +1,9 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
-Bundle-Name: Fabriclipse
+Bundle-Name: %Bundle-Name
 Bundle-SymbolicName: daomephsta.fabriclipse;singleton:=true
 Bundle-Version: 0.0.1
-Bundle-Vendor: Daomephsta
+Bundle-Vendor: %Bundle-Vendor
 Automatic-Module-Name: fabriclipse
 Bundle-RequiredExecutionEnvironment: JavaSE-16
 Require-Bundle: org.eclipse.core.resources,
@@ -19,3 +19,8 @@ Require-Bundle: org.eclipse.core.resources,
  org.eclipse.ui.editors;bundle-version="3.14.100"
 Bundle-Activator: daomephsta.fabriclipse.Fabriclipse
 Bundle-ActivationPolicy: lazy
+Export-Package: daomephsta.fabriclipse,
+ daomephsta.fabriclipse.metadata,
+ daomephsta.fabriclipse.mixin,
+ daomephsta.fabriclipse.util,
+ daomephsta.fabriclipse.util.codemining
