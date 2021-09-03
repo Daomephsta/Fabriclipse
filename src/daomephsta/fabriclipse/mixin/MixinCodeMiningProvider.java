@@ -14,9 +14,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import org.eclipse.core.commands.AbstractHandler;
+import org.eclipse.core.commands.ExecutionEvent;
+import org.eclipse.core.commands.ExecutionException;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.preferences.IEclipsePreferences;
+import org.eclipse.core.runtime.preferences.InstanceScope;
 import org.eclipse.jdt.core.IAnnotation;
 import org.eclipse.jdt.core.IClassFile;
 import org.eclipse.jdt.core.IField;
@@ -31,8 +36,10 @@ import org.eclipse.jdt.ui.JavaUI;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IRegion;
+import org.eclipse.jface.text.ITextSelection;
 import org.eclipse.jface.text.ITextViewer;
 import org.eclipse.jface.text.Position;
+import org.eclipse.jface.text.TextSelection;
 import org.eclipse.jface.text.codemining.AbstractCodeMiningProvider;
 import org.eclipse.jface.text.codemining.ICodeMining;
 import org.eclipse.jface.text.codemining.ICodeMiningProvider;
@@ -43,15 +50,16 @@ import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.PlatformUI;
+import org.eclipse.ui.handlers.HandlerUtil;
 import org.eclipse.ui.texteditor.ITextEditor;
+import org.osgi.service.prefs.BackingStoreException;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 
 import daomephsta.fabriclipse.mixin.MixinStore.MixinInfo;
 import daomephsta.fabriclipse.util.JdtAnnotations;
-import daomephsta.fabriclipse.util.codemining.HeaderCodeMining;
-import daomephsta.fabriclipse.util.codemining.InlineCodeMining;
+import daomephsta.fabriclipse.util.codemining.ToggleableCodeMining;
 
 public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
 {
@@ -60,6 +68,10 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
         .map("org.spongepowered.asm.mixin.injection."::concat).collect(toSet());
     private static final Pattern INVOKER_TARGET = Pattern.compile("(?:call|invoke)([\\w$\\-])([\\w$\\-]+)"),
                                  ACCESSOR_TARGET = Pattern.compile("(?:get|set|is)([\\w$\\-])([\\w$\\-]+)");
+    private static final String
+        PREF_QUALIFIER = "daomephsta.fabriclipse.mixin",
+        PREF_KEY = "minings",
+        FULL_PREF_KEY = PREF_QUALIFIER + '.' + PREF_KEY;
 
     @Override
     public CompletableFuture<List<? extends ICodeMining>>
@@ -105,8 +117,8 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
                 Collection<IMethod> handlers = entry.getValue();
                 if (SourceRange.isAvailable(entry.getKey().target.getSourceRange()))
                 {
-                    minings.add(createMethodCodeMining(entry.getKey().target, entry.getKey().type, handlers,
-                        document, this));
+                    minings.add(createMethodCodeMining(entry.getKey().target, entry.getKey().type,
+                        handlers, document, this));
                 }
                 else
                     System.err.println("No source range for " + entry.getKey().target);
@@ -117,7 +129,7 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
                 ISourceRange sourceRange = entry.getKey().target.getSourceRange();
                 if (SourceRange.isAvailable(sourceRange) && entry.getKey().type.equals("@Accessor"))
                 {
-                    StringBuilder labelBuilder = new StringBuilder(" @Accessor ");
+                    StringBuilder labelBuilder = new StringBuilder(" @Accessor: ");
                     int getters = 0, setters = 0;
                     for (IMethod handler : handlers)
                     {
@@ -135,8 +147,8 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
 
                     IRegion lineInfo = document.getLineInformationOfOffset(sourceRange.getOffset());
                     int lineEnd = lineInfo.getOffset() + lineInfo.getLength();
-                    var mining = new InlineCodeMining(new Position(lineEnd, labelBuilder.length()),
-                        document, this, event -> showHandlerMenu(handlers));
+                    var mining = ToggleableCodeMining.inline(new Position(lineEnd, labelBuilder.length()),
+                        document, this, event -> showHandlerMenu(handlers), FULL_PREF_KEY);
                     mining.setLabel(labelBuilder.toString());
                     minings.add(mining);
                 }
@@ -269,7 +281,8 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
         throws BadLocationException, JavaModelException
     {
         int line = document.getLineOfOffset(target.getSourceRange().getOffset());
-        var mining = new HeaderCodeMining(line, document, provider, event -> showHandlerMenu(handlers));
+        var mining = ToggleableCodeMining.header(line, document, provider,
+            event -> showHandlerMenu(handlers), FULL_PREF_KEY);
         mining.setLabel(String.format("%d x %s", handlers.size(), type));
         return mining;
     }
@@ -299,9 +312,34 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
         pop.setVisible(true);
     }
 
-    @Override
-    public void dispose()
-    {}
+    public static class ToggleMiningsHandler extends AbstractHandler
+    {
+        @Override
+        public Object execute(ExecutionEvent event) throws ExecutionException
+        {
+            IEclipsePreferences prefs = InstanceScope.INSTANCE.getNode(PREF_QUALIFIER);
+            prefs.putBoolean(PREF_KEY, !prefs.getBoolean(PREF_KEY, false));
+            try // Force save
+            {
+                prefs.flush();
+            }
+            catch (BackingStoreException e)
+            {
+                e.printStackTrace();
+            }
+            // Update and redraw code minings. Cursed, but I can find no other way
+            if (HandlerUtil.getActiveEditor(event) instanceof ITextEditor editor &&
+                editor.getSelectionProvider().getSelection() instanceof ITextSelection selection)
+            {
+                TextSelection jogCaret = new TextSelection(
+                    editor.getDocumentProvider().getDocument(null),
+                    selection.getOffset() + 1, selection.getLength());
+                editor.getSelectionProvider().setSelection(jogCaret);
+                editor.getSelectionProvider().setSelection(selection);
+            }
+            return null;
+        }
+    }
 
     private record MethodMiningKey(IMethod target, String type)
     {

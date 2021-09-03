@@ -32,4 +32,40 @@
             type="org.eclipse.ui.IWorkbenchPart">
       </propertyTester>
    </extension>
+   <extension point="org.eclipse.ui.commands">
+      <command
+            categoryId="org.eclipse.jdt.ui.category.source"
+            defaultHandler="daomephsta.fabriclipse.mixin.MixinCodeMiningProvider$ToggleMiningsHandler"
+            id="daomephsta.fabriclipse.mixin.ToggleMiningsCommand"
+            name="Toggle Mixin Code Minings">
+      </command>
+   </extension>
+   <extension
+         point="org.eclipse.ui.menus">
+      <menuContribution
+            allPopups="false"
+            locationURI="menu:org.eclipse.ui.editors?after=org.eclipse.ui.edit.text.toggleShowWhitespaceCharacters">
+         <command
+               commandId="daomephsta.fabriclipse.mixin.ToggleMiningsCommand"
+               label="Toggle Mixin Minings"
+               style="push">
+            <visibleWhen checkEnabled="false">
+             <and>
+               <test
+                     forcePluginActivation="true"
+                     property="org.eclipse.jdt.ui.hasPreference"
+                     value="editor_codemining_enabled">
+               </test>
+               <with variable="activeEditor">
+                  <test
+                        forcePluginActivation="true"
+                        property="daomephsta.fabriclipse.partId"
+                        value="org.eclipse.jdt.ui.ClassFileEditor">
+                  </test>
+               </with>
+             </and>
+            </visibleWhen>
+         </command>
+      </menuContribution>
+   </extension>
 </plugin>
