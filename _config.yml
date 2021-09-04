@@ -1,1 +1,15 @@
+title: Fabriclipse
+description: >-
+  An Eclipse plugin to assist development 
+  of Minecraft mods for the Fabric loader 
+baseurl: "/Fabriclipse"
+url: "https://daomephsta.github.io"
+git_repo: "https://github.com/Daomephsta/Fabriclipse"
+
+# Build settings
 theme: jekyll-theme-midnight
+plugins:
+  - jekyll-feed
+
+exclude:
+  - update_site/
