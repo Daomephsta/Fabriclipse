@@ -1,6 +1,8 @@
 package daomephsta.fabriclipse;
 
 import org.eclipse.core.resources.ResourcesPlugin;
+import org.eclipse.core.runtime.ILog;
+import org.eclipse.core.runtime.Platform;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
 
@@ -9,6 +11,8 @@ import daomephsta.fabriclipse.mixin.MixinStore;
 
 public class Fabriclipse extends AbstractUIPlugin
 {
+    public static final ILog LOGGER = Platform.getLog(Fabriclipse.class);
+
     @Override
     public void start(BundleContext context) throws Exception
     {

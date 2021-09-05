@@ -57,6 +57,7 @@ import org.osgi.service.prefs.BackingStoreException;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 
+import daomephsta.fabriclipse.Fabriclipse;
 import daomephsta.fabriclipse.mixin.MixinStore.MixinInfo;
 import daomephsta.fabriclipse.util.JdtAnnotations;
 import daomephsta.fabriclipse.util.codemining.ToggleableCodeMining;
@@ -121,7 +122,7 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
                         handlers, document, this));
                 }
                 else
-                    System.err.println("No source range for " + entry.getKey().target);
+                    Fabriclipse.LOGGER.error("No source range for " + entry.getKey().target);
             }
             for (Entry<FieldMiningKey, Collection<IMethod>> entry : fieldMinings.asMap().entrySet())
             {
@@ -153,7 +154,7 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
                     minings.add(mining);
                 }
                 else
-                    System.err.println("No source range for " + entry.getKey().target);
+                    Fabriclipse.LOGGER.error("No source range for " + entry.getKey().target);
             }
         }
         catch (BadLocationException | JavaModelException e)
@@ -173,7 +174,7 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
             injectors.put(new MethodMiningKey(target, "@Overwrite"), method);
         else
         {
-            System.err.println("Target " + target.getElementName() +
+            Fabriclipse.LOGGER.error("Target " + target.getElementName() +
                 '(' + String.join("", target.getParameterTypes()) + ')' +
                 " not found in " + openType.getElementName());
         }
@@ -189,7 +190,7 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
             accessors.put(new FieldMiningKey(target, "@Accessor"), method);
         else
         {
-            System.err.println("Target " + target.getElementName() +
+            Fabriclipse.LOGGER.error("Target " + target.getElementName() +
                 " not found in " + openType.getElementName());
         }
     }
@@ -221,7 +222,7 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
             injectors.put(new MethodMiningKey(target, "Invoker"), method);
         else
         {
-            System.err.println("Target " + target.getElementName() +
+            Fabriclipse.LOGGER.error("Target " + target.getElementName() +
                 '(' + String.join("", target.getParameterTypes()) + ')' +
                 " not found in " + openType.getElementName());
         }
