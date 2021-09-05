@@ -1,0 +1,17 @@
+#header {
+    position: inherit;
+}
+
+#header nav {
+    background: inherit;
+    margin: auto !important;
+}
+
+#navbrand {
+    font-size: 1.5em !important; 
+    margin-right: 10px;
+}
+
+footer {
+    text-align: center;
+}

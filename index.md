@@ -1,18 +1,18 @@
 ---
-layout: default
+layout: home
 title: Fabriclipse | Home
 ---
 <script>
 function clipUpdateSiteUrl()
 {
     var source = document.getElementById("updateSiteUrl");
-    navigator.clipboard.writeText("{{site.git_repo}}/update_site");
+    navigator.clipboard.writeText("{{site.url}}{{site.baseurl}}/update_site");
 }
 </script>
 # Installation
 
 1. In Eclipse select **Help** > **Install New Software...**
-1. Paste **{{site.git_repo}}/update_site** in the **Work with** box  
+1. Paste **{{site.url}}{{site.baseurl}}/update_site** in the **Work with** box  
 <input id="updateSiteUrl" type="button" onclick="clipUpdateSiteUrl();" 
 value="Copy update site URL">
 1. Check **Fabriclipse Feature** and click **Next >**
