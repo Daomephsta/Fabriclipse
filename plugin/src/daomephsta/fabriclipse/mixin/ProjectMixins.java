@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
+import daomephsta.fabriclipse.Fabriclipse;
 import daomephsta.fabriclipse.metadata.Mod;
 import daomephsta.fabriclipse.metadata.ProjectEnvironmentManager;
 import daomephsta.fabriclipse.mixin.MixinStore.MixinInfo;
@@ -73,7 +74,7 @@ public class ProjectMixins
                     }
                     catch (CoreException | IOException e)
                     {
-                        e.printStackTrace();
+                        Fabriclipse.LOGGER.error("Loading " + config + " for " + project.getName(), e);
                     }
                 }
             }

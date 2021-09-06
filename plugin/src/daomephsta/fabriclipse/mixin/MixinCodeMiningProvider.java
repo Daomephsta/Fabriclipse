@@ -159,7 +159,7 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
         }
         catch (BadLocationException | JavaModelException e)
         {
-            e.printStackTrace();
+            Fabriclipse.LOGGER.error("Computing minings for " + openType.getFullyQualifiedName(), e);
         }
         return minings;
     }
@@ -185,6 +185,8 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
         throws JavaModelException
     {
         String targetName = getAccessorTarget(accessor, method);
+        if (targetName.isEmpty())
+            return;
         IField target = openType.getField(targetName);
         if (target.exists())
             accessors.put(new FieldMiningKey(target, "@Accessor"), method);
@@ -205,7 +207,8 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
         else
         {
             Matcher matcher = ACCESSOR_TARGET.matcher(method.getElementName());
-            matcher.matches(); //TODO Handle match fail
+            if (!matcher.matches())
+                return "";
             targetDesc = matcher.group(1).toLowerCase() + matcher.group(2);
         }
         return targetDesc;
@@ -217,6 +220,8 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
         throws JavaModelException
     {
         String targetDesc = getInvokerTarget(invoker, method);
+        if (targetDesc.isEmpty())
+            return;
         IMethod target = findMethod(openType, targetDesc);
         if (target != null && target.exists())
             injectors.put(new MethodMiningKey(target, "Invoker"), method);
@@ -238,7 +243,8 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
         else
         {
             Matcher matcher = INVOKER_TARGET.matcher(method.getElementName());
-            matcher.matches(); //TODO Handle match fail
+            if (!matcher.matches())
+                return "";
             targetDesc = matcher.group(1).toLowerCase() + matcher.group(2) + method.getSignature();
         }
         return targetDesc;
@@ -305,7 +311,7 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
                 }
                 catch (CoreException e)
                 {
-                    e.printStackTrace();
+                    Fabriclipse.LOGGER.error("Revealing " + handlerItem.getText(), e);
                 }
             }));
         }
@@ -326,7 +332,7 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
             }
             catch (BackingStoreException e)
             {
-                e.printStackTrace();
+                Fabriclipse.LOGGER.error("Flushing preferences", e);
             }
             // Update and redraw code minings. Cursed, but I can find no other way
             if (HandlerUtil.getActiveEditor(event) instanceof ITextEditor editor &&

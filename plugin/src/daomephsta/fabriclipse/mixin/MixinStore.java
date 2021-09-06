@@ -24,6 +24,7 @@ import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.PlatformUI;
 
+import daomephsta.fabriclipse.Fabriclipse;
 import daomephsta.fabriclipse.metadata.Mod;
 import daomephsta.fabriclipse.util.Mixins;
 
@@ -48,7 +49,7 @@ public class MixinStore implements IResourceChangeListener
             }
             catch (CoreException | IOException e)
             {
-                e.printStackTrace();
+                Fabriclipse.LOGGER.error("Loading " + config, e);
             }
         });
     }
@@ -72,19 +73,18 @@ public class MixinStore implements IResourceChangeListener
     {
         if (event.getType() == IResourceChangeEvent.POST_CHANGE)
         {
-            try
+            for (IResourceDelta projectDelta : event.getDelta().getAffectedChildren())
             {
-                for (IResourceDelta projectDelta :
-                    event.getDelta().getAffectedChildren())
+                IProject project = (IProject) projectDelta.getResource();
+                try
                 {
-                    IProject project = (IProject) projectDelta.getResource();
                     event.getDelta().accept(delta ->
                         visitProjectDelta(project, delta));
                 }
-            }
-            catch (CoreException e)
-            {
-                e.printStackTrace();
+                catch (CoreException e)
+                {
+                    Fabriclipse.LOGGER.error("Visiting " + project.getName(), e);
+                }
             }
         }
     }
@@ -125,6 +125,7 @@ public class MixinStore implements IResourceChangeListener
             }
             catch (PartInitException e)
             {
+                Fabriclipse.LOGGER.error("Updating editor for " + editor.getTitle(), e);
                 e.printStackTrace();
             }
         }

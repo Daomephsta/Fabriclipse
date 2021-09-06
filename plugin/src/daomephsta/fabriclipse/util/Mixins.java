@@ -10,6 +10,8 @@ import org.eclipse.jdt.core.IAnnotation;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaModelException;
 
+import daomephsta.fabriclipse.Fabriclipse;
+
 public class Mixins
 {
     public static Set<String> getTargetClasses(IType mixinClass)
@@ -25,7 +27,7 @@ public class Mixins
         }
         catch (JavaModelException e)
         {
-            e.printStackTrace();
+            Fabriclipse.LOGGER.error("Getting targets of " + mixinClass.getFullyQualifiedName(), e);
             return Collections.emptySet();
         }
     }

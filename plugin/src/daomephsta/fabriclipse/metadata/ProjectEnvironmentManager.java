@@ -36,6 +36,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializer;
 
+import daomephsta.fabriclipse.Fabriclipse;
 import daomephsta.fabriclipse.mixin.MixinStore;
 
 public class ProjectEnvironmentManager implements IResourceChangeListener
@@ -67,7 +68,7 @@ public class ProjectEnvironmentManager implements IResourceChangeListener
             }
             catch (JavaModelException e)
             {
-                e.printStackTrace();
+                Fabriclipse.LOGGER.error("Classpath resolution failed", e);
             }
             return environment;
         }));
@@ -92,7 +93,7 @@ public class ProjectEnvironmentManager implements IResourceChangeListener
         }
         catch (IOException e)
         {
-            e.printStackTrace();
+            Fabriclipse.LOGGER.error("Reading " + jarFile, e);
         }
     }
 
@@ -142,7 +143,7 @@ public class ProjectEnvironmentManager implements IResourceChangeListener
             }
             catch (CoreException e)
             {
-                e.printStackTrace();
+                Fabriclipse.LOGGER.error("Processing " + metadataFile, e);
             }
             break;
         case IResourceDelta.REMOVED:
