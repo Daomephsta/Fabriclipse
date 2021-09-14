@@ -259,7 +259,14 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
             String injectorType = "@" + injector.getElementName().substring(
                 injector.getElementName().lastIndexOf('.') + 1);
             IMethod target = findMethod(openType, method);
-            injects.put(new MethodMiningKey(target, injectorType), handler);
+            if (target != null && target.exists())
+                injects.put(new MethodMiningKey(target, injectorType), handler);
+            else
+            {
+                Fabriclipse.LOGGER.error("Target " + target.getElementName() +
+                    '(' + String.join("", target.getParameterTypes()) + ')' +
+                    " not found in " + openType.getElementName());
+            }
         }
     }
 
