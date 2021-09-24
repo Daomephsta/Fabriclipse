@@ -92,7 +92,7 @@ public class MixinStore implements IResourceChangeListener
     private boolean visitProjectDelta(IProject project, IResourceDelta delta) throws JavaModelException
     {
         if (delta.getResource() instanceof IFile file &&
-            delta.getFullPath().getFileExtension().equals("java"))
+            "java".equals(delta.getFullPath().getFileExtension()))
         {
             var javaFile = (ICompilationUnit) JavaCore.create(file);
             for (IType type : javaFile.getAllTypes())
