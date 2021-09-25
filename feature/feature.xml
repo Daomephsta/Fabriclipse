@@ -2,7 +2,7 @@
 <feature
       id="daomephsta.fabriclipse.feature"
       label="Fabriclipse Feature"
-      version="0.0.1"
+      version="0.0.1.qualifier"
       provider-name="Daomephsta">
 
    <description url="https://daomephsta.github.io/Fabriclipse">
@@ -45,6 +45,6 @@ SOFTWARE.
          id="daomephsta.fabriclipse"
          download-size="0"
          install-size="0"
-         version="0.0.1"/>
+         version="0.0.1.qualifier"/>
 
 </feature>

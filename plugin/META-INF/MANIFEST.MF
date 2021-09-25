@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: %Bundle-Name
 Bundle-SymbolicName: daomephsta.fabriclipse;singleton:=true
-Bundle-Version: 0.0.1
+Bundle-Version: 0.0.1.qualifier
 Bundle-Vendor: %Bundle-Vendor
 Automatic-Module-Name: fabriclipse
 Bundle-RequiredExecutionEnvironment: JavaSE-16
