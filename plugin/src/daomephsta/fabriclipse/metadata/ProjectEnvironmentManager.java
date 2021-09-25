@@ -100,14 +100,11 @@ public class ProjectEnvironmentManager implements IResourceChangeListener
     @Override
     public void resourceChanged(IResourceChangeEvent event)
     {
-        if (event.getType() == IResourceChangeEvent.POST_CHANGE)
+        for (IResourceDelta projectDelta : event.getDelta().getAffectedChildren())
         {
-            for (IResourceDelta projectDelta : event.getDelta().getAffectedChildren())
-            {
-                IResourceDelta fabricModJson = projectDelta.findMember(FABRIC_MOD_JSON);
-                if (fabricModJson != null && fabricModJson.getResource() instanceof IFile metadataFile)
-                    processMetadataFile(fabricModJson, metadataFile);
-            }
+            IResourceDelta fabricModJson = projectDelta.findMember(FABRIC_MOD_JSON);
+            if (fabricModJson != null && fabricModJson.getResource() instanceof IFile metadataFile)
+                processMetadataFile(fabricModJson, metadataFile);
         }
     }
 

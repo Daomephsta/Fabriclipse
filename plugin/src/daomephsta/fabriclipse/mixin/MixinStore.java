@@ -71,21 +71,18 @@ public class MixinStore implements IResourceChangeListener
     @Override
     public void resourceChanged(IResourceChangeEvent event)
     {
-        if (event.getType() == IResourceChangeEvent.POST_CHANGE)
+        for (IResourceDelta projectDelta : event.getDelta().getAffectedChildren())
         {
-            for (IResourceDelta projectDelta : event.getDelta().getAffectedChildren())
+            IProject project = (IProject) projectDelta.getResource();
+            if (!project.isOpen()) continue;
+            try
             {
-                IProject project = (IProject) projectDelta.getResource();
-                if (!project.isOpen()) continue;
-                try
-                {
-                    event.getDelta().accept(delta ->
-                        visitProjectDelta(project, delta));
-                }
-                catch (CoreException e)
-                {
-                    Fabriclipse.LOGGER.error("Visiting " + project.getName(), e);
-                }
+                event.getDelta().accept(delta ->
+                    visitProjectDelta(project, delta));
+            }
+            catch (CoreException e)
+            {
+                Fabriclipse.LOGGER.error("Visiting " + project.getName(), e);
             }
         }
     }
