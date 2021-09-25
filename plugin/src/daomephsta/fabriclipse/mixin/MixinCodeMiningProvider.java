@@ -3,7 +3,6 @@ package daomephsta.fabriclipse.mixin;
 import static java.util.stream.Collectors.toSet;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map.Entry;
@@ -28,7 +27,6 @@ import org.eclipse.jdt.core.IField;
 import org.eclipse.jdt.core.IMemberValuePair;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.ISourceRange;
-import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.Signature;
 import org.eclipse.jdt.core.SourceRange;
@@ -59,6 +57,7 @@ import com.google.common.collect.Multimap;
 
 import daomephsta.fabriclipse.Fabriclipse;
 import daomephsta.fabriclipse.mixin.MixinStore.MixinInfo;
+import daomephsta.fabriclipse.util.BytecodeTypeView;
 import daomephsta.fabriclipse.util.JdtAnnotations;
 import daomephsta.fabriclipse.util.codemining.ToggleableCodeMining;
 
@@ -79,14 +78,14 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
         provideCodeMinings(ITextViewer viewer, IProgressMonitor monitor)
     {
         IClassFile openClass = getAdapter(ITextEditor.class).getEditorInput().getAdapter(IClassFile.class);
-        IType openType = openClass.findPrimaryType();
+        var openType = new BytecodeTypeView(openClass.findPrimaryType());
         IProject project = openClass.getJavaProject().getProject();
-        return MixinStore.INSTANCE.mixinsFor(project, openType.getFullyQualifiedName('.'))
+        return MixinStore.INSTANCE.mixinsFor(project, openType.getFullSourceName())
             .thenApplyAsync(mixins -> computeMinings(mixins, viewer.getDocument(), openType));
     }
 
     private List<? extends ICodeMining> computeMinings(
-        Collection<MixinInfo> mixins, IDocument document, IType openType)
+        Collection<MixinInfo> mixins, IDocument document, BytecodeTypeView openType)
     {
         Multimap<MethodMiningKey, IMethod> methodMinings = HashMultimap.create();
         Multimap<FieldMiningKey, IMethod> fieldMinings = HashMultimap.create();
@@ -159,13 +158,13 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
         }
         catch (BadLocationException | JavaModelException e)
         {
-            Fabriclipse.LOGGER.error("Computing minings for " + openType.getFullyQualifiedName(), e);
+            Fabriclipse.LOGGER.error("Computing minings for " + openType.getFullSourceName(), e);
         }
         return minings;
     }
 
-    private void processOverwrite(
-        IType openType, IMethod method, Multimap<MethodMiningKey, IMethod> injectors)
+    private void processOverwrite(BytecodeTypeView openType, IMethod method,
+        Multimap<MethodMiningKey, IMethod> injectors)
         throws JavaModelException
     {
         IMethod target = openType.getMethod(method.getElementName(),
@@ -176,12 +175,12 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
         {
             Fabriclipse.LOGGER.error("Target " + target.getElementName() +
                 '(' + String.join("", target.getParameterTypes()) + ')' +
-                " not found in " + openType.getElementName());
+                " not found in " + openType.getSimpleSourceName());
         }
     }
 
-    private void processAccessor(
-        IType openType, IAnnotation accessor, IMethod method, Multimap<FieldMiningKey, IMethod> accessors)
+    private void processAccessor(BytecodeTypeView openType, IAnnotation accessor, IMethod method,
+        Multimap<FieldMiningKey, IMethod> accessors)
         throws JavaModelException
     {
         String targetName = getAccessorTarget(accessor, method);
@@ -193,7 +192,7 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
         else
         {
             Fabriclipse.LOGGER.error("Target " + target.getElementName() +
-                " not found in " + openType.getElementName());
+                " not found in " + openType.getSimpleSourceName());
         }
     }
 
@@ -215,8 +214,8 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
     }
 
 
-    private void processInvoker(
-        IType openType, IAnnotation invoker, IMethod method, Multimap<MethodMiningKey, IMethod> injectors)
+    private void processInvoker(BytecodeTypeView openType, IAnnotation invoker, IMethod method,
+        Multimap<MethodMiningKey, IMethod> injectors)
         throws JavaModelException
     {
         String targetDesc = getInvokerTarget(invoker, method);
@@ -228,7 +227,7 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
         else
         {
             Fabriclipse.LOGGER.error("Target " + targetDesc +
-                " not found in " + openType.getElementName());
+                " not found in " + openType.getSimpleSourceName());
         }
     }
 
@@ -249,8 +248,8 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
         return targetDesc;
     }
 
-    private void processInjector(
-        IType openType, IMethod handler, IAnnotation injector, Multimap<MethodMiningKey, IMethod> injects)
+    private void processInjector(BytecodeTypeView openType, IMethod handler, IAnnotation injector,
+        Multimap<MethodMiningKey, IMethod> injects)
         throws JavaModelException
     {
         for (String method : JdtAnnotations.MemberType.STRING.getArray(injector, "method"))
@@ -263,26 +262,25 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
             else
             {
                 Fabriclipse.LOGGER.error("Target " + method +
-                    " not found in " + openType.getElementName());
+                    " not found in " + openType.getSimpleSourceName());
             }
         }
     }
 
-    private IMethod findMethod(IType type, String descriptor) throws JavaModelException
+    private IMethod findMethod(BytecodeTypeView type, String descriptor) throws JavaModelException
     {
         int parametersStart = descriptor.indexOf('(');
         if (parametersStart != -1)
         {
             String name = descriptor.substring(0, parametersStart);
-            // Parameters types must be dot format, or the method isn't found
+            // Parameter types must be dot format, or the method isn't found
             String[] parameterTypes = Signature.getParameterTypes(descriptor.replace('/', '.'));
             IMethod method = type.getMethod(name, parameterTypes);
-            return method.exists() ? method : null;
+            return method != null ? method : null;
         }
         else
         {
-            return Arrays.stream(type.getMethods())
-                .filter(candidate -> candidate.getElementName().equals(descriptor))
+            return type.getOverloads(descriptor)
                 .reduce((a, b) -> {throw new IllegalArgumentException(
                     "Target " + descriptor + " is ambiguous");})
                 .orElse(null);
