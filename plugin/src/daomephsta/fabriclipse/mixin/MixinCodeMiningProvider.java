@@ -223,12 +223,11 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
         if (targetDesc.isEmpty())
             return;
         IMethod target = findMethod(openType, targetDesc);
-        if (target != null && target.exists())
+        if (target != null)
             injectors.put(new MethodMiningKey(target, "Invoker"), method);
         else
         {
-            Fabriclipse.LOGGER.error("Target " + target.getElementName() +
-                '(' + String.join("", target.getParameterTypes()) + ')' +
+            Fabriclipse.LOGGER.error("Target " + targetDesc +
                 " not found in " + openType.getElementName());
         }
     }
@@ -259,12 +258,11 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
             String injectorType = "@" + injector.getElementName().substring(
                 injector.getElementName().lastIndexOf('.') + 1);
             IMethod target = findMethod(openType, method);
-            if (target != null && target.exists())
+            if (target != null)
                 injects.put(new MethodMiningKey(target, injectorType), handler);
             else
             {
-                Fabriclipse.LOGGER.error("Target " + target.getElementName() +
-                    '(' + String.join("", target.getParameterTypes()) + ')' +
+                Fabriclipse.LOGGER.error("Target " + method +
                     " not found in " + openType.getElementName());
             }
         }
@@ -278,7 +276,8 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
             String name = descriptor.substring(0, parametersStart);
             // Parameters types must be dot format, or the method isn't found
             String[] parameterTypes = Signature.getParameterTypes(descriptor.replace('/', '.'));
-            return type.getMethod(name, parameterTypes);
+            IMethod method = type.getMethod(name, parameterTypes);
+            return method.exists() ? method : null;
         }
         else
         {
