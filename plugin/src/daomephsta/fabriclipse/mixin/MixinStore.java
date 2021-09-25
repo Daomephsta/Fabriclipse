@@ -76,6 +76,7 @@ public class MixinStore implements IResourceChangeListener
             for (IResourceDelta projectDelta : event.getDelta().getAffectedChildren())
             {
                 IProject project = (IProject) projectDelta.getResource();
+                if (!project.isOpen()) continue;
                 try
                 {
                     event.getDelta().accept(delta ->
