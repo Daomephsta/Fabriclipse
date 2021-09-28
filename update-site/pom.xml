@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>daomephsta.fabriclipse</groupId>
+    <artifactId>fabriclipse</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <relativePath>..\pom.xml</relativePath>
+  </parent>
+  <artifactId>update-site.eclipse-repository</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <packaging>eclipse-repository</packaging>
+  <name>[updatesite] update-site.eclipse-repository</name>  <properties>
+    <maven.build-helper.version>3.2.0</maven.build-helper.version>
+  </properties>
+  <build>
+    <plugins>
+      <!--Versions of directory properties with forward slashes-->
+      <!--because apparently SOME people didn't test on Windows-->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>${maven.build-helper.version}</version>
+        <executions>
+          <execution>
+            <id>safe-build-directory</id>
+            <goals>
+              <goal>regex-property</goal>
+            </goals>
+            <configuration>
+              <name>project.build.directory.safe</name>
+              <value>${project.build.directory}</value>
+              <regex>\\</regex>
+              <replacement>/</replacement>
+              <failIfNoMatch>false</failIfNoMatch>
+            </configuration>
+          </execution>
+          <execution>
+            <id>safe-base-directory</id>
+            <goals>
+              <goal>regex-property</goal>
+            </goals>
+            <configuration>
+              <name>project.basedir.safe</name>
+              <value>${project.basedir}</value>
+              <regex>\\</regex>
+              <replacement>/</replacement>
+              <failIfNoMatch>false</failIfNoMatch>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+         <groupId>org.eclipse.tycho.extras</groupId>
+         <artifactId>tycho-p2-extras-plugin</artifactId>
+         <version>${tycho.version}</version>
+         <executions>
+            <execution>
+               <id>add-to-update-site</id>
+               <phase>package</phase>
+               <goals>
+                  <goal>mirror</goal>
+               </goals>
+               <configuration>
+                  <source>
+                     <repository>
+                        <url>file:///${project.build.directory.safe}/repository</url>
+                     </repository>
+                  </source>
+                  <destination>${project.basedir.safe}/../../Fabriclipse Website/update_site</destination>
+                  <append>true</append>
+               </configuration>
+            </execution>
+         </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
