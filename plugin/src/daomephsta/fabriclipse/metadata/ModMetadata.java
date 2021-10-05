@@ -5,11 +5,12 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.google.common.reflect.TypeToken;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
+
+import daomephsta.fabriclipse.Fabriclipse;
 
 public class ModMetadata
 {
@@ -37,22 +38,38 @@ public class ModMetadata
     {
         if (json instanceof JsonObject root)
         {
+            int schemaVersion = root.has("schemaVersion") ? root.get("schemaVersion").getAsInt() : 0;
             String modId = root.get("id").getAsString();
-            Set<String> mixinConfigs;
-            if (root.has("mixins"))
+            if (schemaVersion != 1)
             {
-                JsonElement mixinsElement = root.get("mixins");
-                if (mixinsElement.isJsonArray())
-                    mixinConfigs = context.deserialize(mixinsElement, new TypeToken<Set<String>>() {}.getType());
-                else if (mixinsElement instanceof JsonObject mixinsObject)
-                    mixinConfigs = new HashSet<>(mixinsObject.keySet());
-                else
-                    throw new JsonParseException("mixins element of fabric.mod.json must be an array or object");
+                Fabriclipse.LOGGER.warn("Unknown schemaVersion " + schemaVersion);
+                return new ModMetadata(modId, Collections.emptySet());
             }
-            else
-                mixinConfigs = Collections.emptySet();
+            Set<String> mixinConfigs = readMixinConfigs(root);
             return new ModMetadata(modId, mixinConfigs);
         }
         throw new JsonParseException("Root element of fabric.mod.json must be an object");
+    }
+
+    private static Set<String> readMixinConfigs(JsonObject root)
+    {
+        Set<String> mixinConfigs = new HashSet<>();
+        if (root.has("mixins"))
+        {
+            var mixins = root.get("mixins").getAsJsonArray();
+            for (JsonElement mixinConfig : mixins)
+            {
+                if (mixinConfig.isJsonObject()) // Side can be safely ignored as a dev env is merged
+                    mixinConfigs.add(mixinConfig.getAsJsonObject().get("config").getAsString());
+                else if (mixinConfig.isJsonPrimitive() && mixinConfig.getAsJsonPrimitive().isString())
+                    mixinConfigs.add(mixinConfig.getAsString());
+                else
+                {
+                    throw new JsonParseException("Elements in mixins array"
+                        + " of fabric.mod.json must be strings or JSON objects");
+                }
+            }
+        }
+        return mixinConfigs;
     }
 }
