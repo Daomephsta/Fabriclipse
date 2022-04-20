@@ -1,5 +1,7 @@
 package daomephsta.fabriclipse.mixin;
 
+import java.util.Objects;
+
 import daomephsta.fabriclipse.Fabriclipse;
 
 public class Quantifier
@@ -69,5 +71,19 @@ public class Quantifier
         }
         else if (matches == 0)
             Fabriclipse.LOGGER.warn("No matches: " + context);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(lowerBound, minimumMatches, upperBound);
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        if (this == obj) return true;
+        if (!(obj instanceof Quantifier other)) return false;
+        return lowerBound == other.lowerBound && minimumMatches == other.minimumMatches && upperBound == other.upperBound;
     }
 }
