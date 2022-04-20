@@ -13,7 +13,7 @@ public class MethodSpec
         "(?<owner>L[A-z$_0-9\\x{00C0}-\\x{FFFF}\\/]+;)?" +
         "(?<name>[A-z$_0-9\\/\\x{00C0}-\\x{FFFF}<>]+)?" +
         "(?<quantifier>\\*|\\+|\\{\\d?,?\\d?\\})?" +
-        "(?<desc>\\([A-z$_0-9\\/\\x{00C0}-\\x{FFFF};]+\\)[A-z$_0-9\\/\\x{00C0}-\\x{FFFF};]+)?");
+        "(?<desc>\\([A-z$_0-9\\/\\x{00C0}-\\x{FFFF};]*\\)[A-z$_0-9\\/\\x{00C0}-\\x{FFFF};]+)?");
     final String owner, name;
     final String[] parameterTypes;
     final String returnType;
