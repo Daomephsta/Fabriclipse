@@ -4,9 +4,11 @@ import static java.util.stream.Collectors.toSet;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -17,7 +19,7 @@ import java.util.stream.Stream;
 import org.eclipse.core.commands.AbstractHandler;
 import org.eclipse.core.commands.ExecutionEvent;
 import org.eclipse.core.commands.ExecutionException;
-import org.eclipse.core.resources.IProject;
+import org.eclipse.core.runtime.Adapters;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.preferences.IEclipsePreferences;
@@ -26,6 +28,7 @@ import org.eclipse.jdt.core.Flags;
 import org.eclipse.jdt.core.IAnnotation;
 import org.eclipse.jdt.core.IClassFile;
 import org.eclipse.jdt.core.IField;
+import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMemberValuePair;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.ISourceRange;
@@ -50,6 +53,7 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.handlers.HandlerUtil;
 import org.eclipse.ui.texteditor.ITextEditor;
@@ -79,10 +83,16 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
     public CompletableFuture<List<? extends ICodeMining>>
         provideCodeMinings(ITextViewer viewer, IProgressMonitor monitor)
     {
-        IClassFile openClass = getAdapter(ITextEditor.class).getEditorInput().getAdapter(IClassFile.class);
-        IType openType = openClass.findPrimaryType();
-        IProject project = openClass.getJavaProject().getProject();
-        return MixinStore.INSTANCE.mixinsFor(project, openType.getFullyQualifiedName('.'))
+        Optional<IClassFile> openClass = Optional.ofNullable(Adapters.adapt(this, ITextEditor.class))
+            .map(IEditorPart::getEditorInput)
+            .map(input -> Adapters.adapt(input, IClassFile.class));
+        if (openClass.isEmpty())
+            return CompletableFuture.completedFuture(Collections.emptyList());
+        IType openType = openClass.get().findPrimaryType();
+        IJavaProject javaProject = openClass.get().getJavaProject();
+        if (openType == null || javaProject == null)
+            return CompletableFuture.completedFuture(Collections.emptyList());
+        return MixinStore.INSTANCE.mixinsFor(javaProject.getProject(), openType.getFullyQualifiedName('.'))
             .thenApplyAsync(mixins -> computeMinings(mixins, viewer.getDocument(), openType));
     }
 
