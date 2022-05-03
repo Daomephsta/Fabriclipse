@@ -242,7 +242,7 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
             injectors.put(new MethodMiningKey(target, "@Overwrite"), method);
         else
         {
-            Fabriclipse.LOGGER.error("Target " + target.getElementName() +
+            Fabriclipse.LOGGER.error("Overwrite target " + target.getElementName() +
                 '(' + String.join("", target.getParameterTypes()) + ')' +
                 " not found in " + openType.getFullyQualifiedName('.'));
         }
@@ -260,7 +260,7 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
             accessors.put(new FieldMiningKey(target, "@Accessor"), method);
         else
         {
-            Fabriclipse.LOGGER.error("Target " + target.getElementName() +
+            Fabriclipse.LOGGER.error("Accessor target " + target.getElementName() +
                 " not found in " + openType.getFullyQualifiedName('.'));
         }
     }
@@ -293,7 +293,7 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
         if (!visitTargets(openType, targetDesc,
             target -> injectors.put(new MethodMiningKey(target, "Invoker"), method)))
         {
-            Fabriclipse.LOGGER.error("Target " + targetDesc +
+            Fabriclipse.LOGGER.error("Invoker target " + targetDesc +
                 " not found in " + openType.getFullyQualifiedName('.'));
         }
     }
