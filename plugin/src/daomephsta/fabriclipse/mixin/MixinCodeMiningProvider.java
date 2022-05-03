@@ -83,7 +83,7 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
     public CompletableFuture<List<? extends ICodeMining>>
         provideCodeMinings(ITextViewer viewer, IProgressMonitor monitor)
     {
-        Optional<IClassFile> openClass = Optional.ofNullable(Adapters.adapt(this, ITextEditor.class))
+        Optional<IClassFile> openClass = Optional.ofNullable(getAdapter(ITextEditor.class))
             .map(IEditorPart::getEditorInput)
             .map(input -> Adapters.adapt(input, IClassFile.class));
         if (openClass.isEmpty())
