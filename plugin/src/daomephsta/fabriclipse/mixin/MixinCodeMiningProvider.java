@@ -97,15 +97,19 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
 
     record Injection(String type, IMethod handler, MethodSpec target) {}
 
-    private List<? extends ICodeMining> computeMinings(
-        Collection<MixinInfo> mixins, IDocument document, IType openType)
+    private List<? extends ICodeMining> computeMinings(Collection<MixinInfo> mixins, IDocument document, IType openType)
     {
-        Multimap<String, Injection> injections = HashMultimap.create();
         Multimap<MethodMiningKey, IMethod> methodMinings = HashMultimap.create();
         Multimap<FieldMiningKey, IMethod> fieldMinings = HashMultimap.create();
-        processMixins(mixins, openType, injections, methodMinings, fieldMinings);
-        matchInjectionTargets(openType, injections, methodMinings);
+        gatherMiningData(mixins, openType, methodMinings, fieldMinings);
         List<ICodeMining> minings = new ArrayList<>();
+        computeMethodMinings(document, methodMinings, minings);
+        computeFieldMinings(document, fieldMinings, minings);
+        return minings;
+    }
+
+    private void computeMethodMinings(IDocument document, Multimap<MethodMiningKey, IMethod> methodMinings, List<ICodeMining> minings)
+    {
         for (Map.Entry<MethodMiningKey, Collection<IMethod>> entry : methodMinings.asMap().entrySet())
         {
             try
@@ -129,6 +133,10 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
                 Fabriclipse.LOGGER.error("Creating code mining for " + entry.getKey(), e);
             }
         }
+    }
+
+    private void computeFieldMinings(IDocument document, Multimap<FieldMiningKey, IMethod> fieldMinings, List<ICodeMining> minings)
+    {
         for (Map.Entry<FieldMiningKey, Collection<IMethod>> entry : fieldMinings.asMap().entrySet())
         {
             try
@@ -166,12 +174,12 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
                 Fabriclipse.LOGGER.error("Creating code mining for " + entry.getKey(), e);
             }
         }
-        return minings;
     }
 
-    private void matchInjectionTargets(IType openType, Multimap<String, Injection> injections,
-        Multimap<MethodMiningKey, IMethod> methodMinings)
+    private void gatherMiningData(Collection<MixinInfo> mixins, IType openType,
+        Multimap<MethodMiningKey, IMethod> methodMinings, Multimap<FieldMiningKey, IMethod> fieldMinings)
     {
+        var injections = gatherInjections(mixins, openType, methodMinings, fieldMinings);
         try
         {
             for (IMethod method : openType.getMethods())
@@ -197,10 +205,10 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
         }
     }
 
-    private void processMixins(Collection<MixinInfo> mixins, IType openType,
-        Multimap<String, Injection> injections, Multimap<MethodMiningKey, IMethod> methodMinings,
-        Multimap<FieldMiningKey, IMethod> fieldMinings)
+    private Multimap<String, Injection> gatherInjections(Collection<MixinInfo> mixins, IType openType,
+        Multimap<MethodMiningKey, IMethod> methodMinings, Multimap<FieldMiningKey, IMethod> fieldMinings)
     {
+        var injections = HashMultimap.<String, Injection>create();
         for (MixinInfo info : mixins)
         {
             try
@@ -232,6 +240,7 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
                     " from " + info.mixin().getFullyQualifiedName('.'), e);
             }
         }
+        return injections;
     }
 
     private void processOverwrite(IType openType, IMethod method,
@@ -294,7 +303,7 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
         String targetDesc = getInvokerTarget(invoker, method);
         if (targetDesc.isEmpty())
             return;
-        if (!visitTargets(openType, targetDesc,
+        if (!visitInvokerTarget(openType, targetDesc,
             target -> injectors.put(new MethodMiningKey(target, "Invoker"), method)))
         {
             Fabriclipse.LOGGER.error("Invoker target " + targetDesc +
@@ -317,17 +326,7 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
         }
     }
 
-    private void processInjector(IType openType, IMethod handler, IAnnotation injector,
-        Consumer<Injection> injections)
-        throws JavaModelException
-    {
-        String injectorType = "@" + injector.getElementName().substring(
-            injector.getElementName().lastIndexOf('.') + 1);
-        for (String method : JdtAnnotations.MemberType.STRING.getArray(injector, "method"))
-            injections.accept(new Injection(injectorType, handler, MethodSpec.parse(method)));
-    }
-
-    private boolean visitTargets(IType type, String descriptor, Consumer<IMethod> visitor)
+    private boolean visitInvokerTarget(IType type, String descriptor, Consumer<IMethod> visitor)
         throws JavaModelException
     {
         var spec = MethodSpec.parse(descriptor);
@@ -340,6 +339,16 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
             }
         }
         return false;
+    }
+
+    private void processInjector(IType openType, IMethod handler, IAnnotation injector,
+        Consumer<Injection> injections)
+        throws JavaModelException
+    {
+        String injectorType = "@" + injector.getElementName().substring(
+            injector.getElementName().lastIndexOf('.') + 1);
+        for (String method : JdtAnnotations.MemberType.STRING.getArray(injector, "method"))
+            injections.accept(new Injection(injectorType, handler, MethodSpec.parse(method)));
     }
 
     static ICodeMining createMethodCodeMining(ISourceRange location, String type, Collection<IMethod> handlers,
