@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -73,7 +74,7 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
         "Inject", "ModifyArg", "ModifyArgs", "ModifyConstant", "ModifyVariable", "Redirect")
         .map("org.spongepowered.asm.mixin.injection."::concat).collect(toSet());
     private static final Pattern INVOKER_TARGET = Pattern.compile("(?:call|invoke)([\\w$\\-])([\\w$\\-]+)"),
-                                 ACCESSOR_TARGET = Pattern.compile("(?:get|set|is)([\\w$\\-])([\\w$\\-]+)");
+                                 ACCESSOR_TARGET = Pattern.compile("(?:get|set|is)([\\w$\\-]+)");
     private static final String
         PREF_QUALIFIER = "daomephsta.fabriclipse.mixin",
         PREF_KEY = "minings",
@@ -268,20 +269,22 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
     private String getAccessorTarget(IAnnotation invoker, IMethod method)
         throws JavaModelException
     {
-        String targetDesc;
         IMemberValuePair value = JdtAnnotations.member(invoker, "value");
         if (value != null)
-            targetDesc = (String) value.getValue();
+            return (String) value.getValue();
         else
         {
             Matcher matcher = ACCESSOR_TARGET.matcher(method.getElementName());
             if (!matcher.matches())
                 return "";
-            targetDesc = matcher.group(1).toLowerCase() + matcher.group(2);
+            String inferred = matcher.group(1);
+            // Don't lowercase accessors targeting constants
+            if (inferred.toUpperCase(Locale.ROOT).equals(inferred))
+                return inferred;
+            else
+                return inferred.substring(0, 1).toLowerCase(Locale.ROOT) + inferred.substring(1);
         }
-        return targetDesc;
     }
-
 
     private void processInvoker(IType openType, IAnnotation invoker, IMethod method,
         Multimap<MethodMiningKey, IMethod> injectors)
