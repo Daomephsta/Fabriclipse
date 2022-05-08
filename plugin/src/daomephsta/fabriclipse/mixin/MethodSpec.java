@@ -77,7 +77,7 @@ public class MethodSpec
             if (bounds.length == 0)
                 return Signature.createTypeSignature(Object.class.getName(), true);
             // Erasure always uses the first bound
-            return bounds[0];
+            return erase(candidate, bounds[0]);
         }
         return Signature.getTypeErasure(signature);
     }
