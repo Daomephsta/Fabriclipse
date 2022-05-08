@@ -301,18 +301,16 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
     private String getInvokerTarget(IAnnotation invoker, IMethod method)
         throws JavaModelException
     {
-        String targetDesc;
         IMemberValuePair value = JdtAnnotations.member(invoker, "value");
         if (value != null)
-            targetDesc = (String) value.getValue();
+            return (String) value.getValue();
         else
         {
             Matcher matcher = INVOKER_TARGET.matcher(method.getElementName());
             if (!matcher.matches())
                 return "";
-            targetDesc = matcher.group(1).toLowerCase() + matcher.group(2) + method.getSignature();
+            return matcher.group(1).toLowerCase() + matcher.group(2) + method.getSignature();
         }
-        return targetDesc;
     }
 
     private void processInjector(IType openType, IMethod handler, IAnnotation injector,
@@ -328,6 +326,15 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
     private boolean visitTargets(IType type, String descriptor, Consumer<IMethod> visitor)
         throws JavaModelException
     {
+        var spec = MethodSpec.parse(descriptor);
+        for (IMethod method : type.getMethods())
+        {
+            if (spec.matches(type, method))
+            {
+                visitor.accept(method);
+                return true;
+            }
+        }
         return false;
     }
 
