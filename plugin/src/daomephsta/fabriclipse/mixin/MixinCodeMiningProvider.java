@@ -40,10 +40,8 @@ import org.eclipse.jdt.core.SourceRange;
 import org.eclipse.jdt.ui.JavaUI;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
-import org.eclipse.jface.text.IRegion;
 import org.eclipse.jface.text.ITextSelection;
 import org.eclipse.jface.text.ITextViewer;
-import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.TextSelection;
 import org.eclipse.jface.text.codemining.AbstractCodeMiningProvider;
 import org.eclipse.jface.text.codemining.ICodeMining;
@@ -139,7 +137,7 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
                 ISourceRange sourceRange = entry.getKey().target.getSourceRange();
                 if (SourceRange.isAvailable(sourceRange) && entry.getKey().type.equals("@Accessor"))
                 {
-                    StringBuilder labelBuilder = new StringBuilder(" @Accessor: ");
+                    StringBuilder labelBuilder = new StringBuilder("@Accessor: ");
                     int getters = 0, setters = 0;
                     for (IMethod handler : handlers)
                     {
@@ -155,9 +153,7 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
                     }
                     if (setters > 0) labelBuilder.append(setters + " set");
 
-                    IRegion lineInfo = document.getLineInformationOfOffset(sourceRange.getOffset());
-                    int lineEnd = lineInfo.getOffset() + lineInfo.getLength();
-                    var mining = ToggleableCodeMining.inline(new Position(lineEnd, labelBuilder.length()),
+                    var mining = ToggleableCodeMining.header(document.getLineOfOffset(sourceRange.getOffset()),
                         document, this, event -> showHandlerMenu(handlers), FULL_PREF_KEY);
                     mining.setLabel(labelBuilder.toString());
                     minings.add(mining);
