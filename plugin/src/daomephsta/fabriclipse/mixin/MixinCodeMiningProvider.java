@@ -113,11 +113,16 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
             try
             {
                 Collection<IMethod> handlers = entry.getValue();
-                if (SourceRange.isAvailable(entry.getKey().target.getSourceRange()))
+                ISourceRange sourceRange = entry.getKey().target.getSourceRange();
+                String type = entry.getKey().type;
+                // Attach <clinit> injectors to the class if there is no static {} block in the source
+                if (entry.getKey().target.getElementName().equals("<clinit>") && !SourceRange.isAvailable(sourceRange))
                 {
-                    minings.add(createMethodCodeMining(entry.getKey().target, entry.getKey().type,
-                        handlers, document, this));
+                    sourceRange = entry.getKey().target.getDeclaringType().getSourceRange();
+                    type += " into static initialiser";
                 }
+                if (SourceRange.isAvailable(sourceRange))
+                    minings.add(createMethodCodeMining(sourceRange, type, handlers, document, this));
                 else if (!Flags.isSynthetic(entry.getKey().target.getFlags()))
                     Fabriclipse.LOGGER.error("No source range for " + entry.getKey().target);
             }
@@ -341,11 +346,11 @@ public class MixinCodeMiningProvider extends AbstractCodeMiningProvider
         return false;
     }
 
-    static ICodeMining createMethodCodeMining(IMethod target, String type, Collection<IMethod> handlers,
+    static ICodeMining createMethodCodeMining(ISourceRange location, String type, Collection<IMethod> handlers,
         IDocument document, ICodeMiningProvider provider)
         throws BadLocationException, JavaModelException
     {
-        int line = document.getLineOfOffset(target.getSourceRange().getOffset());
+        int line = document.getLineOfOffset(location.getOffset());
         var mining = ToggleableCodeMining.header(line, document, provider,
             event -> showHandlerMenu(handlers), FULL_PREF_KEY);
         mining.setLabel(String.format("%d x %s", handlers.size(), type));
