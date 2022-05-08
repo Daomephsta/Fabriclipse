@@ -2,8 +2,10 @@ package daomephsta.fabriclipse.mixin;
 
 import java.util.regex.Pattern;
 
+import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
+import org.eclipse.jdt.core.ITypeParameter;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.Signature;
 
@@ -45,8 +47,10 @@ public class MethodSpec
         {
             return false;
         }
-        if (parameterTypes != null && candidate.getNumberOfParameters() == parameterTypes.length)
+        if (parameterTypes != null)
         {
+            if (candidate.getNumberOfParameters() != parameterTypes.length)
+                return false;
             for (int i = 0; i < parameterTypes.length; i++)
             {
                 String erased = erase(candidate, candidate.getParameterTypes()[i]);
@@ -68,7 +72,7 @@ public class MethodSpec
     {
         if (Signature.getTypeSignatureKind(signature) == Signature.TYPE_VARIABLE_SIGNATURE)
         {
-            var typeParameter = candidate.getTypeParameter(Signature.getSignatureSimpleName(signature));
+            ITypeParameter typeParameter = findTypeParameter(candidate, Signature.getSignatureSimpleName(signature));
             String[] bounds = typeParameter.getBoundsSignatures();
             if (bounds.length == 0)
                 return Signature.createTypeSignature(Object.class.getName(), true);
@@ -76,6 +80,22 @@ public class MethodSpec
             return bounds[0];
         }
         return Signature.getTypeErasure(signature);
+    }
+
+    private static ITypeParameter findTypeParameter(IMethod candidate, String signature)
+    {
+        ITypeParameter typeParameter = null;
+        IJavaElement element = candidate;
+        do
+        {
+            if (element instanceof IMethod method)
+                typeParameter = method.getTypeParameter(signature);
+            else if (element instanceof IType type)
+                typeParameter = type.getTypeParameter(signature);
+            element = element.getParent();
+        }
+        while (!typeParameter.exists() && element.getParent() != null);
+        return typeParameter;
     }
 
     private static boolean areTypesEqual(String typeA, String typeB)
